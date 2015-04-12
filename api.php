@@ -9,10 +9,20 @@
  */
 
 require_once ('DataManager.php');
+require_once ('Logger.php');
+
+$logger = new Logger ();
+
+$logger -> log ("-----------------------------------------");
+$logger -> log ("Date: " . (new DateTime())->format(DateTime::W3C));
+$logger -> log (print_r ($_REQUEST, true));
+
 
 if (! isset ($_REQUEST['operation'])) {
     die ('No operation given!');
 }
+
+$logger -> log ("Got request for operation: " . $_REQUEST['operation']);
 
 switch ($_REQUEST['operation']) {
 
@@ -24,7 +34,7 @@ switch ($_REQUEST['operation']) {
             ];
         } else {
             $phone = $_REQUEST['phone'];
-            $DataManager = new DataManager ();
+            $DataManager = new DataManager ('cropapp');
             $DataManager -> addFarmer ($phone);
             $result = [
                 'result' => 1
@@ -36,7 +46,7 @@ switch ($_REQUEST['operation']) {
 
         $oldNumber = $_REQUEST['oldNumber'];
         $newNumber = $_REQUEST['number'];
-        $DataManager = new DataManager ();
+        $DataManager = new DataManager ('cropapp');
         $DataManager -> updatePhone ($oldNumber, $newNumber);
         
         $result = [
@@ -44,18 +54,28 @@ switch ($_REQUEST['operation']) {
         ];
     break;
 
+    case 'listProblems':
+
+        $DataManager = new DataManager ('cropapp');
+        $result = $DataManager -> getProblems();
+
+    break;
+
     case 'listCrofts':
-        $DataManager = new DataManager ();
+        $DataManager = new DataManager ('cropapp');
         if (isset ($_REQUEST['number']) && is_numeric($_REQUEST['number'])) {
             $crofts = $DataManager -> getCrofts ($_REQUEST['number']);
         } else {
             $crofts = $DataManager -> getCrofts ();
         }
-        $result = [
-            'result' => 0,
-            'data'   => $crofts
-        ];
+        $result = $crofts;
 
+    break;
+
+    case 'listCroftsTest':
+        $DataManager = new DataManager ('cropapp');
+        $crofts = $DataManager -> getCroftsTest ();
+        $result = $crofts;
     break;
 
     case 'addReport':
@@ -68,7 +88,7 @@ switch ($_REQUEST['operation']) {
         $latitude = $_REQUEST['lat'];
         $longitude = $_REQUEST['lng'];
 
-        $DataManager = new DataManager ();
+        $DataManager = new DataManager ('cropapp');
         $DataManager -> addReport (
             $phone,
             $problem,
@@ -112,7 +132,7 @@ switch ($_REQUEST['operation']) {
             $latitude = $_REQUEST['lat'];
             $longitude = $_REQUEST['lng'];
 
-            $DataManager = new DataManager ();
+            $DataManager = new DataManager ('cropapp');
 
             if (! $DataManager->farmerExists ($phone)) {
                 $DataManager -> addFarmer ($phone);

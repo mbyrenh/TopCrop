@@ -4,8 +4,8 @@ class DataManager {
 
     private $DBConnection = null;
 
-    public function __construct () {
-        $this -> DBConnection = new PDO ('mysql:dbname=cropapp;host=127.0.0.1', 'root', 'admin');
+    public function __construct ($dbname) {
+        $this -> DBConnection = new PDO ('mysql:dbname='.$dbname.';host=127.0.0.1', 'root', 'admin');
     }
 
     public function addFarmer ($phone) {
@@ -52,7 +52,7 @@ class DataManager {
     public function addReport ($phone, $problem, $start, $description, $latitude, $longitude, $ongoing) {
 
         $stmt = $this -> DBConnection -> prepare ("
-            INSERT INTO reports (:phone, problem, start, reported, end, description, latitude, longitude)
+            INSERT INTO reports (phone, problem, start, reported, end, description, latitude, longitude)
             VALUES (:phone, :problem, :start, NOW(), :end, :description, :latitude, :longitude) 
         ");
 
@@ -98,14 +98,79 @@ class DataManager {
         
     }
 
+    */
 
+    public function getReports () {
 
-    public function getReports ($croftName) {
+        $stmt = $this -> DBConnection -> prepare ("
+            SELECT *
+            FROM reports
+        ");
 
+        $stmt -> execute ();
+        return $stmt -> fetchAll (PDO::FETCH_ASSOC);
     }
 
-    public function revokeReport ($)
-*/
+    public function getProblems () {
+
+        $stmt = $this -> DBConnection -> prepare ("
+            SELECT DISTINCT problem
+            FROM reports
+        ");
+
+        $stmt -> execute ();
+        return $stmt -> fetchAll (PDO::FETCH_NUM);
+    }
+
+    public function getCroftsTest () {
+
+        $distance = 500;
+        
+        // Get all crofts
+        $stmt = $this -> DBConnection -> prepare ("
+            SELECT c.id, c.name, c.latitude, c.longitude, 'normal' as state 
+            FROM crofts c
+            ");
+
+        $stmt -> execute (); 
+        $crofts = $stmt -> fetchAll(PDO::FETCH_GROUP | PDO::FETCH_ASSOC);
+        // Run through all reports and find neighbour crofts
+        $reports = $this -> getReports ();
+        foreach ($reports as $report) {
+
+            $stmt = $this -> DBConnection -> prepare ("
+                CALL neighbours (:latitude, :longitude, :distance)
+                ");
+
+            $stmt -> bindParam ('latitude', $report['latitude']);
+            $stmt -> bindParam ('longitude', $report['longitude']);
+            $stmt -> bindParam ('distance', $distance);
+
+            $stmt -> execute ();
+            $affected = $stmt -> fetchAll (PDO::FETCH_ASSOC);
+            foreach ($affected as $croft) {
+                $crofts[$croft['id']][0]['state'] = 'endangered';
+            }
+        }
+
+        // Find all crofts where a report has been filed for
+        $stmt = $this -> DBConnection -> prepare ("
+            SELECT c.id, c.name, c.latitude, c.longitude 
+            FROM crofts c, reports r
+            WHERE c.latitude - r.latitude < 0.1
+                AND c.longitude - r.longitude < 0.1
+        ");
+
+        $stmt -> execute (); 
+        $crisis = $stmt -> fetchAll(PDO::FETCH_GROUP | PDO::FETCH_COLUMN);
+
+        foreach ($crisis as $key => $croft) {
+            $crofts [$key][0]['state'] = 'infected';
+        }
+
+        return array_values (array_map ('reset', $crofts));
+    }
+
     public function getCrofts ($phone = NULL) {
 
         if ($phone !== NULL) {
@@ -129,40 +194,32 @@ class DataManager {
         return $stmt->fetchAll (PDO::FETCH_ASSOC);
     }
 
-    /*
     public function getNeighbours ($phone, $croftName, $distance) {
 
+        $stmt = $this -> DBConnection -> prepare  ("
+            SELECT c.latitude, c.longitude
+            FROM crofts c
+            JOIN farmers f ON f.id = c.farmer_id
+            WHERE
+                f.phone = :phone
+                AND c.name = :name
+        ");
+
+        $stmt -> bindParam ('phone', $phone);
+        $stmt -> bindParam ('name', $croftName);
+        $stmt -> execute ();
+        $croft = $stmt -> fetch(PDO::FETCH_ASSOC);
+        print_r($croft);
         $stmt = $this -> DBConnection -> prepare ("
-            SELECT f.phone, (((acos( 
-                                sin(
-                                 ((:latitude)*pi()/180)) * sin((c.latitude*pi()/180))+cos((:latitude)*pi()/180))
-                                 * cos((c.latitude*pi()/180)) * cos((((:longitude)-c.longitude)*pi()/180)))
-                                 *180/pi())*60*1.1515) as distance 
-            FROM farmers f
-            JOIN crofts c ON c.farmer_id = f.id
-            WHERE distance <= :distance
+            CALL neighbours(:latitude, :longitude, :distance)
             ");
 
-
-
-        /*
-         *  "SELECT *,(((acos(sin((".$latitude."*pi()/180)) * 
-sin((`Latitude`*pi()/180))+cos((".$latitude."*pi()/180)) * 
-cos((`Latitude`*pi()/180)) * cos(((".$longitude."- `Longitude`)*
-pi()/180))))*180/pi())*60*1.1515) as distance FROM `MyTable` 
-WHERE distance <= ".$distance."         *
-
-
-        $stmt -> bindParam ('name', $name);
-        $stmt -> bindParam ('problem', $problem);
-        $stmt -> bindParam ('start', $start);
-        $stmt -> bindParam ('end', $end);
-        $stmt -> bindParam ('description', $description);
-        $stmt -> bindParam ('phone', $phone);
+        $stmt -> bindParam ('latitude', $croft['latitude']);
+        $stmt -> bindParam ('longitude', $croft['latitude']);
+        $stmt -> bindParam ('distance', $distance);
 
         $stmt -> execute ();
-
-
-}*/
+        return $stmt -> fetchAll (PDO::FETCH_ASSOC);
+    }   
 }
 ?>
