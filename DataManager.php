@@ -157,8 +157,8 @@ class DataManager {
         $stmt = $this -> DBConnection -> prepare ("
             SELECT c.id, c.name, c.latitude, c.longitude 
             FROM crofts c, reports r
-            WHERE c.latitude - r.latitude < 0.1
-                AND c.longitude - r.longitude < 0.1
+            WHERE abs(c.latitude - r.latitude) < 0.1
+                AND abs(c.longitude - r.longitude) < 0.1
         ");
 
         $stmt -> execute (); 
