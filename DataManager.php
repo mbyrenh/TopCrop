@@ -119,7 +119,7 @@ class DataManager {
         ");
 
         $stmt -> execute ();
-        return $stmt -> fetchAll (PDO::FETCH_NUM);
+        return $stmt -> fetchAll (PDO::FETCH_ASSOC);
     }
 
     public function getCroftsTest () {
